@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Scatter } from 'react-chartjs-2';
-import streaks from './streaks'
+import streaks from '../src/streaks'
 
 const response = streaks;
 response.tracks = response.tracks.map((track) => ({ ...track, isMostPopularAt: new Set(track.isMostPopularAt) }))
