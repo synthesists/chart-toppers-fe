@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Scatter } from 'react-chartjs-2';
 import streaks from '../src/streaks'
 
+import dynamic from "next/dynamic";
 const response = streaks;
 response.tracks = response.tracks.map((track) => ({ ...track, isMostPopularAt: new Set(track.isMostPopularAt) }))
 
@@ -18,6 +19,9 @@ const createDatasetFromStreak = ({ startDate, positions, weekOffset }, id) => {
     data,
   }
 }
+const AudioPlayer = dynamic(() => import("../components/Audio"), {
+  ssr: false,
+});
 
 const NUMBER_OF_VISIBLE_WEEKS = 20;
 
@@ -42,6 +46,7 @@ const Chart = () => {
   const [currentWeek, setCurrentWeek] = useState(-1);
   const [previewUrl, setPreviewUrl] = useState('');
   const [playing, setPlaying] = useState(false);
+  const [playFunction, setPlayFunction] = useState(() => () => console.log(1));
 
   const visibleTracks = getVisibleTracks(currentWeek);
   const mostPopularTrack = getMostPopularTrack(Math.floor(currentWeek));
@@ -100,14 +105,11 @@ const Chart = () => {
   
   return (
     <div>
-      <audio src={previewUrl} autoPlay controls />
-
-      {playing && <button onClick={() => {
-        setPlaying(false)
-        }} >Pause</button>}
-      {!playing && <button onClick={() => {
-        setPlaying(true)
-      }} >Resume</button>}
+      <AudioPlayer setPlayFunction={setPlayFunction} url={previewUrl}/>
+      <button onClick={() => {
+        playFunction();
+        setPlaying(!playing)
+        }}>{playing ? "Pause" : "Play"}</button>
       {!playing && <button onClick={() => {
         setCurrentWeek(0)
       }} >Reset</button>}
