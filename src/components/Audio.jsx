@@ -4,6 +4,7 @@ const audio = new Audio();
 let playing = false;
 
 const player = ({ url, setPlayFunction }) => {
+  console.log(url);
   useEffect(() => {
     if (url) {
       audio.src = url;

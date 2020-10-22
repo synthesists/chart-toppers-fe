@@ -1,25 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Scatter } from 'react-chartjs-2';
-import streaks from '../src/streaks'
+import streaks from '../../streaks'
 
 import dynamic from "next/dynamic";
 const response = streaks;
 response.tracks = response.tracks.map((track) => ({ ...track, isMostPopularAt: new Set(track.isMostPopularAt) }))
 
-const randomColourGenerator = () => `rgb(${Math.random() * 64 + 96}, ${Math.random() * 128 + 128}, ${Math.random() * 128 + 128})`
+const randomColourGenerator = () => `rgba(${Math.random() * 64 + 96}, ${Math.random() * 128 + 128}, ${Math.random() * 128 + 128}, 0.7)`
 
 const createDatasetFromStreak = ({ startDate, positions, weekOffset }, id) => {
   const data = positions.map((position, x) => ({ x: x + weekOffset, y: position }))
-
+  const colour = randomColourGenerator()
   return {
     label: `${id}-${startDate}`,
-    fill: false,
-    borderColor: randomColourGenerator(),
+    fill: 'start',
+    borderColor: colour,
+    backgroundColor: [colour, randomColourGenerator()],
     showLine: true,
     data,
   }
 }
-const AudioPlayer = dynamic(() => import("../components/Audio"), {
+const AudioPlayer = dynamic(() => import("../../components/Audio"), {
   ssr: false,
 });
 
@@ -66,6 +67,7 @@ const Chart = () => {
   }, [currentWeek, playing]);
   
   const options = {
+    fill: true,
     animation: false,
     legend: {
       display: false
@@ -113,7 +115,7 @@ const Chart = () => {
       {!playing && <button onClick={() => {
         setCurrentWeek(0)
       }} >Reset</button>}
-      <Scatter data={myData} options={options} />
+      <Scatter style={{ 'background-color': 'red' }}data={myData} options={options} />
       <ul>
         {visibleTracks.map((track) => (
           <li key={track.id} >{track.id}</li>
