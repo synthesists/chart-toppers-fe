@@ -1,126 +1,73 @@
 import { useEffect, useState } from 'react';
-import { Line } from 'react-chartjs-2';
-import streaks from '../streaks'
-
 import dynamic from "next/dynamic";
-const response = streaks;
-response.tracks = response.tracks.map((track) => ({ ...track, isMostPopularAt: new Set(track.isMostPopularAt) }))
 
-const randomColourGenerator = () => `rgb(${Math.random() * 64 + 96}, ${Math.random() * 128 + 128}, ${Math.random() * 128 + 128})`
+import Chart from '../components/Chart'
+import { datasets, getVisibleTracks, getMostPopularTrack } from '../utils/parseChartHistory';
+const AudioPlayer = dynamic(() => import("../components/Audio"), { ssr: false });
 
-const createDatasetFromStreak = ({ startDate, positions, weekOffset }, id) => {
-  const data = positions.map((position, x) => ({ x: x + weekOffset, y: position }))
-
-  return {
-    label: `${id}-${startDate}`,
-    fill: false,
-    borderColor: randomColourGenerator(),
-    showLine: true,
-    data,
-  }
-}
-const AudioPlayer = dynamic(() => import("../components/Audio"), {
-  ssr: false,
-});
-
-const NUMBER_OF_VISIBLE_WEEKS = 20;
-
-const datasets = response.tracks.flatMap(track => track.streaks.map(streak => createDatasetFromStreak(streak, track.id)))
-const startDate = new Date()
-
-const streakIsVisible = ({ weekOffset, positionsLength }, currentWeek, lastWeek) => {
-  return (weekOffset < lastWeek && weekOffset + positionsLength > currentWeek)
-}
-
-const getVisibleTracks = (currentWeek) => {
-  const firstVisibleWeek = currentWeek - NUMBER_OF_VISIBLE_WEEKS;
-
-  return response.tracks.filter(({ streaks }) => streaks.some((streak) => streakIsVisible(streak, firstVisibleWeek, currentWeek)))
-}
-
-const getMostPopularTrack = (currentWeek) => {
-  return response.tracks.find((track) => track.isMostPopularAt.has(currentWeek))
-}
-
-const Chart = () => {
+const Page = () => {
   const [currentWeek, setCurrentWeek] = useState(-1);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [playing, setPlaying] = useState(false);
-  const [playFunction, setPlayFunction] = useState(() => () => console.log(1));
+  const [playFunction, setPlayFunction] = useState(() => () => {});
+  
+  const requestRef = React.useRef();
+  const previousTimeRef = React.useRef();
+  const toPlay = React.useRef(false);
+  const toRestart = React.useRef(false);
 
   const visibleTracks = getVisibleTracks(currentWeek);
   const mostPopularTrack = getMostPopularTrack(Math.floor(currentWeek));
 
-  if (mostPopularTrack && mostPopularTrack.previewUrl !== previewUrl) {
-    setPreviewUrl(mostPopularTrack.previewUrl);
-  }
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, []); 
 
   useEffect(() => {
-    if (currentWeek - 1 < response.totalNumberOfWeeks) {
-      setTimeout(() => {
-        if (playing) {
-          setCurrentWeek(currentWeek + .1);
-        }
-      }, 20)
+    if (mostPopularTrack) {
+      setPreviewUrl(mostPopularTrack.previewUrl);
     }
-  }, [currentWeek, playing]);
-  
-  const options = {
-    animation: false,
-    legend: {
-      display: false
-    },
-    tooltips: {
-        enabled: false
-    },
-    scales: {
-       xAxes: [{
-          type: 'linear',
-          ticks: {
-            min: currentWeek - NUMBER_OF_VISIBLE_WEEKS,
-            max: currentWeek,
-            callback: (value) => value % 1
-              ? undefined
-              : new Date(new Date().setDate(startDate.getDate() + 7 * value)).toJSON().substring(0, 10),
-          },
-          gridLines: {
-            drawBorder: false,
-          },
-       }],
-       yAxes: [{
-          type: 'linear',
-          ticks: {
-            reverse: true,
-            min: 0,
-            max: 100,
-          }
-       }],
-    }
-};
+  }, [mostPopularTrack]);
 
-  const myData = {
-	  options,
-    datasets
-  };
-  
+  const togglePlay = () => {
+    playFunction();
+    toPlay.current = !toPlay.current;
+  }
+  const restart = () => {
+    toRestart.current = !toRestart.current;
+  }
+
+  const animate = (time) => {
+    if (previousTimeRef.current != undefined) {
+      if (toRestart.current) {
+        setCurrentWeek(0)
+        previousTimeRef.current = time
+        toRestart.current = false;
+      } else {
+        const deltaTime = time - previousTimeRef.current;
+        
+        if (toPlay.current) {
+          setCurrentWeek(week => (week + deltaTime * 0.005));
+        } else {
+          previousTimeRef.current = time
+        }
+      }
+    }
+    previousTimeRef.current = time;
+    requestRef.current = requestAnimationFrame(animate);
+  }
+
   return (
     <div>
       <AudioPlayer setPlayFunction={setPlayFunction} url={previewUrl}/>
-      <button onClick={() => {
-        playFunction();
-        setPlaying(!playing)
-        }}>{playing ? "Pause" : "Play"}</button>
-      {!playing && <button onClick={() => {
-        setCurrentWeek(0)
-      }} >Reset</button>}
-      <Line data={myData} options={options} />
+      <button onClick={togglePlay}>{"Toggle Play"}</button>
+      <button onClick={restart} >Reset</button>
+      <Chart datasets={datasets} currentWeek={currentWeek}/>
       <ul>
-        {visibleTracks.map((track) => (
-          <li key={track.id} >{track.id}</li>
-        ))}
+        {visibleTracks.map((track) => <li key={track.id} >{track.id}</li>)}
       </ul>
     </div>
   )
 }
 
-export default Chart
+export default Page
