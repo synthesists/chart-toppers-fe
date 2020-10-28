@@ -1,26 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-const audio = new Audio();
-let playing = false;
+const player = ({ url, isPlaying }) => {
+  const audio = useRef(new Audio());
 
-const player = ({ url, setPlayFunction }) => {
-  console.log(url);
   useEffect(() => {
     if (url) {
-      audio.src = url;
-      if (playing) audio.play();
+      audio.current.src = url;
+      if (isPlaying) {
+        audio.current.play();
+      }
     }
   }, [url]);
 
-  useEffect(() => setPlayFunction(() => () => {
-    if (playing && audio.src) {
-      audio.pause();
-      playing = false;
-    } else {
-      audio.play();
-      playing = true;
+  useEffect(() => {
+    if (audio.current.readyState) {
+      if (isPlaying) {
+        audio.current.play();
+      } else {
+        audio.current.pause();
+      }
     }
-  }), [setPlayFunction]);
+  }, [isPlaying])
 
   return null;
 };
