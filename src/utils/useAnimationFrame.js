@@ -30,8 +30,6 @@ const useAnimationFrame = (callback, animationSpeed) => {
     if (playing.current) {
       justStartedPlaying.current = true;
       requestRef.current = requestAnimationFrame(animate);
-    } else {
-      cancelAnimationFrame(requestRef.current)
     }
     return () => cancelAnimationFrame(requestRef.current);
   }, [playing.current]); 
